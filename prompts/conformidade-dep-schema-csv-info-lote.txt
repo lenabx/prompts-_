@@ -1,0 +1,115 @@
+PROMPT — Conformidade com o dep + novo schema do CSV + análise do info_lote
+============================================================================
+
+CONTEXTO: o BaseExecutorLote (repo dep) define que subclasses implementam APENAS
+execute(item, item_id). O padrão documentado na docstring do dep é o
+lambda_handler do módulo chamar executor.handler(event, context) direto, SEM
+override de handler() na subclasse. O dep NÃO será modificado.
+
+--------------------------------------------------------------------------
+PARTE 1 — REMOVER OS OVERRIDES DE handler() DAS DUAS EXECUTORAS
+--------------------------------------------------------------------------
+
+A lógica que hoje vive nos overrides migra para o lambda_handler do módulo
+(função fora da classe):
+
+1. DISPONIBILIDADE:
+   - Captura do contexto do lote (idExtracao, idLoteDisponibilidade, filtros):
+     no lambda_handler, antes de chamar executor.handler, extrair do event e
+     setar nos atributos da instância que execute() usa.
+   - Agregação pós-batch: após o retorno de executor.handler, usar
+     base["resultados"] (cada item COMPLETADO traz "resultado" com as linhas
+     geradas pelo execute) para montar e gravar 1 JSONL + 1 CSV por invocação
+     (aws_request_id), e enriquecer o retorno com o contrato v1
+     (itensExtracaoKey, statusKey, totalLinhasExtracao, schemaVersion).
+     Para isso, execute() deve retornar as linhas em memória (sem gravar no S3
+     por item) — confirme se já está assim ou ajuste.
+
+2. EXTRAÇÃO:
+   - Contexto (idExtracao, idLoteExtracao): a linha desnormalizada é a fonte
+     de verdade (execute lê do item); manter fallback do contexto do lote via
+     lambda_handler, igual à disponibilidade.
+   - Consolidação (records, resultado.json, summary): migra para o
+     lambda_handler, consumindo base["resultados"].
+
+3. GARANTIAS:
+   - O retorno final que a step function enxerga NÃO muda (contrato v1
+     preservado, agora montado no lambda_handler).
+   - Warm start: o executor é instanciado no escopo do módulo e reutilizado
+     entre invocações. Os atributos de contexto setados por invocação devem
+     ser SEMPRE sobrescritos a cada chamada, nunca acumulados.
+   - Ajustar os testes que testavam o handler da classe para testar o
+     lambda_handler do módulo; adicionar teste de warm start (duas invocações
+     seguidas com contextos diferentes não vazam estado).
+
+--------------------------------------------------------------------------
+PARTE 2 — NOVO SCHEMA DO CSV DE ENTRADA
+--------------------------------------------------------------------------
+
+O arquivo de lote enviado pelo usuário DEIXA de ser CPF;FAMILY e passa a ter
+três colunas, separador ';':
+
+    identificacao;agrupamento;tipoPessoa
+
+- identificacao: documento da pessoa (substitui CPF). Com tipoPessoa no
+  arquivo, avalie se pode ser CPF ou CNPJ e o impacto disso.
+- agrupamento: rótulo de grupo definido pelo usuário (substitui family).
+  Continua NÃO sendo usado pela lógica de extração — é identificação/
+  rastreabilidade, propagado até o resultado final.
+- tipoPessoa: tipo da pessoa (ex.: F/J). Verifique se a API de
+  disponibilidade e a API de extração precisam receber esse campo nas
+  chamadas (listar_disponiveis / obter_rendimento) e ajuste os clients se
+  necessário.
+
+Impactos a cobrir:
+1. executora-disponibilidade: execute() passa a ler identificacao,
+   agrupamento e tipoPessoa do item (em vez de codIdefPess/family vindos do
+   CSV antigo). Validar campo obrigatório (identificacao ausente = erro do
+   item).
+2. Linha desnormalizada (contrato v1): renomear/ajustar campos —
+   identificacao (ou manter codIdefPess como nome interno? decidir e
+   documentar), agrupamento no lugar de family, incluir tipoPessoa. Bump de
+   schemaVersion se o contrato mudar de forma incompatível, com atualização
+   do README.
+3. executora-extracao: consumir os novos nomes de campos da linha.
+4. Idempotência: a chave UUID5 do item muda de conteúdo (novos campos) —
+   confirmar que continua determinística e documentar que lotes antigos em
+   andamento não são compatíveis (migração big-bang aceitável? sinalize).
+5. Testes das duas lambdas e fixtures de CSV atualizados para o novo schema.
+
+--------------------------------------------------------------------------
+PARTE 3 — ANÁLISE (SEM IMPLEMENTAR): PARÂMETRO GENÉRICO info_lote
+--------------------------------------------------------------------------
+
+Hoje o contexto específico do domínio (idExtracao, idLoteDisponibilidade,
+filtros) viaja em campos soltos do BatchInput, o que acopla a step function
+agnóstica de lotes ao vocabulário de informes.
+
+Analise a introdução de um parâmetro genérico info_lote:
+- Um objeto/envelope opaco que a orquestração-mãe (extração) monta e a step
+  agnóstica apenas PROPAGA (input da execução -> ItemBatcher.BatchInput ->
+  lambdas executoras), sem interpretar o conteúdo.
+- As executoras leem de event["BatchInput"]["info_lote"] o que precisarem
+  (idExtracao, filtros etc.), mantendo a agnóstica 100% sem conhecimento de
+  domínio.
+
+Entregue:
+1. Proposta de formato (ex.: info_lote como dict livre + campos padrão do
+   lote: id_lote, tipo_lote fora dele).
+2. Mudanças necessárias: state machine agnóstica (Parameters/ItemBatcher),
+   prepara-metadados (se registra info_lote no METADATA), lambdas executoras
+   (leitura), orquestração-mãe (montagem).
+3. Compatibilidade: como conviver com o formato atual durante a transição
+   (campos antigos + info_lote em paralelo ou corte único).
+4. Riscos e limites (tamanho do BatchInput, payload máximo do Step
+   Functions).
+
+NÃO implemente a Parte 3 — apresente a análise para decisão.
+
+--------------------------------------------------------------------------
+ORDEM DE EXECUÇÃO
+--------------------------------------------------------------------------
+1. Parte 1 e Parte 2 juntas (mexem nos mesmos arquivos).
+2. Rodar a suite completa das duas lambdas e mostrar o resultado ANTES de
+   commitar.
+3. Parte 3 somente como análise/proposta ao final.
