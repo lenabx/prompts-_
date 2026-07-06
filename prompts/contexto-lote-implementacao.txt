@@ -1,0 +1,48 @@
+PROMPT — Aprovação da Parte 3 (info_lote → contexto_lote) + implementação
+============================================================================
+
+Análise da Parte 3 aprovada, com um ajuste de nomenclatura: o parâmetro se
+chamará contexto_lote (em vez de info_lote) — em todos os pontos: Parameters
+da state machine, ItemBatcher.BatchInput, prepara-metadados, lambdas
+executoras e orquestração-mãe. O nome comunica melhor o propósito (contexto
+do lote propagado, não informação avulsa).
+
+Implemente conforme a proposta, com as decisões fechadas:
+
+1. FORMATO: contexto_lote como dict livre e opaco, ao lado dos campos padrão
+   (id_lote, tipo_lote, bucket, key ficam soltos — a agnóstica precisa
+   deles). Todo vocabulário de informes (idExtracao, idLoteDisponibilidade,
+   idLoteExtracao, filtros) vai dentro de contexto_lote.
+
+2. PROPAGAÇÃO: prepara-metadados-lote aceita contexto_lote opcional no event
+   (default {}) e ECOA no próprio retorno, nos dois formatos (arquivo único
+   e diretório); a state machine agnóstica lê do retorno dela
+   ($.metadados.contexto_lote) nos 6 blocos de ItemBatcher.BatchInput.
+   Persistir também como atributo no item METADATA do DynamoDB
+   (auditoria/debug).
+
+3. LAMBDAS EXECUTORAS: no lambda_handler, ler de
+   batch_input.get("contexto_lote", {}) com o fallback duplo temporário
+   (contexto_lote.get(...) or batch_input.get(...)) — marcar o fallback com
+   comentário TODO de remoção após validação em execução real em dev.
+
+4. ORQUESTRAÇÃO-MÃE: montar contexto_lote no Input de
+   PASSO_1_Disponibilidade e PASSO_2_ExtracaoPDFs, movendo os campos de
+   domínio para dentro dele.
+
+5. GUARDAS: documentar no README da agnóstica que contexto_lote deve
+   permanecer pequeno (limite de payload de 256 KiB do Step Functions; nada
+   de arrays grandes em filtros) e que o BatchInput é replicado por
+   invocação.
+
+6. TESTES: prepara-metadados ecoando contexto_lote nos dois formatos;
+   executoras lendo do novo envelope + fallback; teste garantindo que
+   contexto_lote ausente não quebra nada (default {}).
+
+--------------------------------------------------------------------------
+EXECUÇÃO
+--------------------------------------------------------------------------
+Trabalhar em branch feature nos repos tocados, rodar as suites completas e
+mostrar o resultado antes de commitar. Registrar no README que a validação
+final exige execução real do Step Functions em dev (mesma ressalva do
+LOAD_AND_FLATTEN).
