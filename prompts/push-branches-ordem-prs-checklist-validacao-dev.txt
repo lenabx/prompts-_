@@ -1,0 +1,27 @@
+PROMPT — Push das 5 branches feature/contexto-lote-propagacao + ordem de PRs + checklist de validação em dev
+============================================================================
+
+Após os commits, faça o push das 5 branches
+feature/contexto-lote-propagacao e me liste os PRs a abrir com a ordem de
+merge recomendada considerando as dependências (sugiro: dep intocado;
+executoras e prepara-metadados primeiro; agnóstica depois; mãe por último,
+já que depende do contrato de todos). Inclua na descrição do PR da mãe a
+reversão do c3a3cee e o motivo.
+
+--------------------------------------------------------------------------
+CHECKLIST DE VALIDAÇÃO EM DEV
+--------------------------------------------------------------------------
+
+Por fim, gere um CHECKLIST DE VALIDAÇÃO EM DEV (arquivo no repo da mãe ou
+descrição de PR) com a execução ponta a ponta que valida os pontos nunca
+testados ao vivo:
+
+- CSV pequeno com ';' (detecção do delimitador + Choice SEMICOLON).
+- Fase 1 completa.
+- LOAD_AND_FLATTEN lendo o prefixo JSONL na fase 2.
+- contexto_lote chegando nas executoras.
+- Os 3 status na tabela.
+- O ZIP final.
+
+Liste o que observar em cada etapa e onde (execução da SFN, CloudWatch,
+DynamoDB, S3).
