@@ -1,0 +1,43 @@
+PROMPT — CSVDelimiter: detecção automática em camadas (vírgula e ponto-e-vírgula)
+============================================================================
+
+Sobre o CSVDelimiter: nenhuma das duas opções como estão. Não quero
+hardcode de SEMICOLON (engessa a agnóstica) nem depender só de parâmetro
+declarado. Quero que a agnóstica ACEITE CSVs com vírgula E ponto-e-vírgula,
+resolvido em camadas:
+
+1. DETECÇÃO AUTOMÁTICA na prepara-metadados-lote: ela já lê o arquivo para
+   contar registros — adicione a detecção do delimitador na primeira linha
+   (ex.: csv.Sniffer do Python restrito a [',', ';'], ou contagem simples
+   com desempate documentado). Grave o resultado no retorno/metadados como
+   csv_delimiter (COMMA|SEMICOLON). Isso é parse mecânico, não conhecimento
+   de domínio — a agnosticidade se mantém.
+
+2. OVERRIDE EXPLÍCITO opcional: se o Input da execução trouxer
+   csv_delimiter, ele vence a detecção (a prepara-metadados só valida e
+   ecoa). Default de comportamento: sem parâmetro e sem detecção
+   conclusiva = COMMA (comportamento atual preservado para consumidores
+   existentes).
+
+3. ROTEAMENTO na state machine: primeiro VERIFIQUE NA DOC OFICIAL da AWS
+   (como no spike do LOAD_AND_FLATTEN) se o ReaderConfig aceita valores
+   dinâmicos via JsonPath (CSVDelimiter.$).
+   - Se aceitar: um único bloco Map por modo, com o delimitador vindo de
+     $.metadados.csv_delimiter — solução mais limpa.
+   - Se NÃO aceitar (provável): Choice roteando para variantes do Map CSV
+     com COMMA e SEMICOLON (nos dois modos: arquivo e diretório), seguindo
+     o mesmo padrão do Choice de tipo de arquivo que já existe.
+   Informar qual dos dois caminhos a doc permite antes de implementar o
+   item 3.
+
+4. TESTES: prepara-metadados detectando ',' e ';' corretamente; override
+   vencendo a detecção; CSV de uma coluna só (caso ambíguo — documente o
+   comportamento); teste de regressão garantindo que consumidor sem
+   parâmetro e com vírgula continua idêntico ao comportamento atual.
+
+5. Na MÃE: com a autodetecção, a fase 1 NÃO precisa passar csv_delimiter —
+   remover do Input se tinha sido adicionado, e documentar que a detecção
+   cobre o caso.
+
+Documentar as camadas no README da agnóstica (ordem de precedência:
+override > detecção > default COMMA).
