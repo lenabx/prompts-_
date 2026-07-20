@@ -1,0 +1,22 @@
+PROMPT — D-1101: verificar suporte a lista em coluna_agrupamento no formatar_generico.py
+============================================================================
+
+Boa investigação — o achado do particionamento por data de processamento
+confirma que não podemos assumir período único. Concordo com o agrupamento
+composto, mas antes de gravar: sim, verifique se o formatar_generico.py
+(no outro repo) aceita uma lista em coluna_agrupamento. Reporte o que
+encontrar:
+
+- Se suportar lista → use
+  ["numero_inscricao_empresa", "periodo_apuracao"] e me diga qual é o nome
+  real da coluna de competência no dado interno (não assuma
+  periodo_apuracao — confirme; deve ser a coluna que alimenta o perApur do
+  XSD).
+- Se NÃO suportar lista → não force. Me explique como o formatador espera
+  receber o agrupamento hoje, e paramos pra decidir juntos entre
+  (a) evoluir o formatador ou (b) garantir período único num passo
+  anterior (filtrar). Não escolha sozinho nem deixe string simples "por
+  compatibilidade".
+
+Deixe o coluna_agrupamento como está até essa verificação. Não grave a
+versão string-simples.
