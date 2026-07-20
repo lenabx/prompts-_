@@ -1,0 +1,15 @@
+PROMPT — D-1101: validar particionamento por período + fechar colunas_obrigatorias
+============================================================================
+
+Antes de confirmar: sua premissa de que o lote já vem particionado por
+período precisa ser validada, porque o D-1101 é 1 XML por empresa+período.
+Verifique nos passos anteriores do cenário (filtrar/enriquecer, se
+existirem no repo) se o dado que chega no formatar já está filtrado por
+uma única competência. Se não conseguir confirmar pelo código, deixe o
+coluna_agrupamento preparado para agrupamento composto por
+numero_inscricao_empresa + periodo_apuracao, e me diga o que encontrou.
+
+Sobre os colunas_obrigatorias: sim, use as 7 resolvidas + id_processamento
++ id_evento, mais as 13 colunas hoje em TODO_ (elas vão deixar de ser
+placeholder quando eu resolver os nomes com o MOD — deixe-as na lista com
+os nomes finais que combinarmos).
