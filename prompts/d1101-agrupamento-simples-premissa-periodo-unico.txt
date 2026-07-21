@@ -1,0 +1,22 @@
+PROMPT — D-1101: agrupamento simples + premissa de período único registrada
+============================================================================
+
+Vamos de (b). Não vamos tocar no formatar_generico.py — é compartilhado
+por todos os cenários e sai do escopo desta task. Além disso, o próprio
+XSD do D-1101 confirma que, para tpOper=1, só pode haver um perApur por
+nrInsc — então garantir período único a montante está alinhado com a
+regra oficial do leiaute.
+
+Faça:
+
+- coluna_agrupamento: string simples numero_inscricao_empresa (compatível
+  com o formatador atual), SEM comentário "por compatibilidade".
+- Registre no formatar.json (ou num README do cenário) a PREMISSA
+  explícita: "este formatar assume lote já particionado por um único
+  período de apuração (perApur); a garantia de período único é
+  responsabilidade do passo filtrar do cenário, ainda a ser criado."
+- NÃO crie o passo filtrar agora nem altere o formatador compartilhado. Só
+  registre a dependência.
+- Finalize colunas_obrigatorias com as 7 já resolvidas + id_processamento
+  + id_evento + as 13 que hoje estão como TODO_ (mantenha os nomes TODO_
+  por enquanto).
